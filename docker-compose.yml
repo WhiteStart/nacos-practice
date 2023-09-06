@@ -1,0 +1,143 @@
+version: "3.0"
+
+networks:
+  nacos-net:
+    driver: bridge
+#    ipam:
+#      driver: default
+#      config:
+#        - subnet: 172.16.0.0/24
+#          gateway: 172.16.0.1
+
+services:
+  nacos1:
+    hostname: nacos1
+    container_name: nacos1
+    image: nacos/nacos-server:2.0.3
+    #    environment:
+    #      MODE: standalone
+    volumes:
+      - ./volumes/cluster-logs/nacos1:/home/nacos/logs
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9555:9555"
+    env_file:
+      - ./volumes/env/nacos-hostname.env
+    networks:
+      - nacos-net
+    #      nacos-net:
+    #        ipv4_address: 172.16.0.2
+    restart: always
+    depends_on:
+      - mysql
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:8848/nacos/actuator/health" ]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 10
+
+  nacos2:
+    hostname: nacos2
+    container_name: nacos2
+    image: nacos/nacos-server:2.0.3
+    volumes:
+      - ./volumes/cluster-logs/nacos2:/home/nacos/logs
+    ports:
+      - "8849:8848"
+      - "9849:9848"
+    env_file:
+      - ./volumes/env/nacos-hostname.env
+    networks:
+      - nacos-net
+    restart: always
+    depends_on:
+      - mysql
+
+  nacos3:
+    hostname: nacos3
+    container_name: nacos3
+    image: nacos/nacos-server:2.0.3
+    volumes:
+      - ./volumes/cluster-logs/nacos3:/home/nacos/logs
+    ports:
+      - "8850:8848"
+      - "9850:9848"
+    env_file:
+      - ./volumes/env/nacos-hostname.env
+    networks:
+      - nacos-net
+    restart: always
+    depends_on:
+      - mysql
+
+  mysql:
+    container_name: mysql
+    image: mysql
+    ports:
+      - "1234:3306"
+    #    env_file:
+    #      - ./volumes/env/mysql.env
+    environment:
+      MYSQL_ROOT_PASSWORD: hmz990203
+    volumes:
+      - "$PWD/volumes/mysql/data:/var/lib/mysql"
+      - "$PWD/volumes/mysql/conf/test.conf:/etc/mysql/conf.d/test.conf"
+      - "$PWD/volumes/init:/docker-entrypoint-initdb.d"
+    # 防止乱码问题
+    command: [
+        '--character-set-server=utf8mb4',
+        '--collation-server=utf8mb4_unicode_ci'
+    ]
+    networks:
+      - nacos-net
+    #      nacos-net:
+    #        ipv4_address: 172.16.0.5
+#    healthcheck:
+#      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+#      interval: 5s
+#      timeout: 10s
+#      retries: 10
+
+  nginx_nacos:
+    container_name: nginx_nacos
+    image: nginx
+    ports:
+      - 80:80
+    networks:
+      - nacos-net
+    volumes:
+      - ./volumes/nginx/html:/usr/share/nginx/html:ro
+      - ./volumes/nginx/conf/nginx.conf:/etc/nginx/nginx.conf
+
+  userservice:
+    container_name: user-service
+    build:
+      ./user-service
+    networks:
+      - nacos-net
+#    depends_on:
+#      nacos:
+#        condition: service_healthy
+
+  orderservice:
+    container_name: order-service
+    build:
+      ./order-service
+    networks:
+      - nacos-net
+#    depends_on:
+#      nacos:
+#        condition: service_healthy
+
+  gateway:
+    container_name: gateway
+    build:
+      ./gateway
+    ports:
+      - "10010:10010"
+    networks:
+      - nacos-net
+#    depends_on:
+#      nacos:
+#        condition: service_healthy

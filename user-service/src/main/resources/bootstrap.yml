@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: test
+  cloud:
+    nacos:
+      server-addr: nginx_nacos:80
+      #      server-addr: nacos:8848
+      config:
+        file-extension: yaml
